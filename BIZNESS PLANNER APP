@@ -1,0 +1,152 @@
+import flet as ft
+
+# Initialize expenses list and user-defined income
+expenses = []
+income = 0
+
+# Function to add expense from user input
+def add_expense(e):
+    try:
+        name = name_field.value
+        cost = float(cost_field.value)
+        priority = int(priority_field.value)
+
+        if priority < 1 or priority > 5:
+            error_message.value = "Priority must be between 1 and 5."
+            app.update()
+            return
+
+        expenses.append({"name": name, "cost": cost, "priority": priority})
+        name_field.value = ""
+        cost_field.value = ""
+        priority_field.value = ""
+
+        display_expenses()
+        optimize_budget()
+    except ValueError:
+        error_message.value = "Please enter valid numbers for cost and priority."
+        app.update()
+
+def set_income(e):
+    global income
+    try:
+        income = float(income_field.value)
+        income_text.value = f"Monthly Income: ₹{income}"
+        income_field.value = ""
+        error_message.value = ""
+        app.update()
+        optimize_budget()
+    except ValueError:
+        error_message.value = "Please enter a valid income amount."
+        app.update()
+
+def display_expenses():
+    expense_container.controls.clear()
+    for expense in expenses:
+        expense_container.controls.append(
+            ft.Text(f"{expense['name']}: ₹{expense['cost']} (Priority: {expense['priority']})", color="#FFFFFF", size=16)
+        )
+    app.update()
+
+def knapsack_budget_allocation(income, expenses):
+    expenses.sort(key=lambda x: (-x["priority"], x["cost"]))
+    total_cost = 0
+    recommended_expenses = []
+    not_recommended_expenses = []
+
+    for expense in expenses:
+        if total_cost + expense["cost"] <= income:
+            recommended_expenses.append(expense)
+            total_cost += expense["cost"]
+        else:
+            not_recommended_expenses.append(expense)
+
+    return recommended_expenses, not_recommended_expenses, total_cost
+
+def optimize_budget():
+    if income == 0:
+        remaining_income.value = "Please enter your income to calculate budget."
+        app.update()
+        return
+
+    recommended_expenses, not_recommended_expenses, total_cost = knapsack_budget_allocation(income, expenses)
+    
+    budget_container.controls.clear()
+    for expense in recommended_expenses:
+        budget_container.controls.append(
+            ft.Text(f"{expense['name']}: ₹{expense['cost']} (Priority: {expense['priority']})", color="#00FF00", size=16)
+        )
+        
+    total_recommended = ft.Text(f"Total Recommended: ₹{total_cost}", size=16, color="#00FF00", weight="bold")
+    budget_container.controls.append(total_recommended)
+
+    not_recommended_container.controls.clear()
+    for expense in not_recommended_expenses:
+        not_recommended_container.controls.append(
+            ft.Text(f"{expense['name']}: ₹{expense['cost']} (Priority: {expense['priority']})", color="#FF4500", size=16)
+        )
+
+    total_not_recommended = ft.Text(f"Total Not Recommended: ₹{sum(exp['cost'] for exp in not_recommended_expenses)}", size=16, color="#FF4500", weight="bold")
+    not_recommended_container.controls.append(total_not_recommended)
+
+    remaining_income.value = f"Remaining Income (Savings): ₹{income - total_cost}"
+    error_message.value = ""
+    app.update()
+
+# Flet App Interface
+def main(page: ft.Page):
+    global app, income_text, expense_container, budget_container, not_recommended_container, remaining_income, error_message
+    global name_field, cost_field, priority_field, income_field
+
+    page.title = "Personal Finance Budget Planner"
+    page.bgcolor = "#000000"  # Black background
+
+    app = page
+    expense_container = ft.Column()
+    budget_container = ft.Column()
+    not_recommended_container = ft.Column()
+    remaining_income = ft.Text(size=16, color="#ADD8E6")
+    error_message = ft.Text(size=14, color="#FF4500")
+
+    # Input fields
+    income_field = ft.TextField(label="Enter Monthly Income (₹)", width=250, text_style=ft.TextStyle(color="#FFFFFF"))
+    name_field = ft.TextField(label="Expense Name", width=250, text_style=ft.TextStyle(color="#FFFFFF"))
+    cost_field = ft.TextField(label="Cost (₹)", width=100, text_style=ft.TextStyle(color="#FFFFFF"))
+    priority_field = ft.TextField(label="Priority (1-5),5 being highest", width=100, text_style=ft.TextStyle(color="#FFFFFF"))
+
+    # Displayed texts
+    income_text = ft.Text("Income: ₹0", size=24, color="#ADD8E6", weight="bold")
+
+    page.add(
+        ft.Text("Personal Finance Budget Planner", size=32, color="#FFFFFF", weight="bold"),
+        
+        # Set income section
+        ft.Row([income_field, ft.ElevatedButton("Set Income", on_click=set_income, style=ft.ButtonStyle(color="#ADD8E6"))]),
+        income_text,
+        error_message,
+
+        # Add expense section
+        ft.Text("Add an Expense:", size=20, color="#FFFFFF", weight="bold"),
+        ft.Row([name_field, cost_field, priority_field, ft.ElevatedButton("Add Expense", on_click=add_expense, style=ft.ButtonStyle(color="#ADD8E6"))]),
+
+        # Display added expenses
+        ft.Text("Your Expenses:", size=20, color="#FFFFFF", weight="bold"),
+        expense_container,
+
+        # Recommended Budget Allocation
+        ft.Text("Recommended Budget Allocation:", size=20, color="#00FF00", weight="bold"),
+        budget_container,
+
+        # Non-recommended Expenses
+        ft.Text("Expenses Not Recommended (Exceed Budget):", size=20, color="#FF4500", weight="bold"),
+        not_recommended_container,
+
+        # Remaining Income
+        remaining_income
+    )
+
+    # Add a scrollbar to the page
+    page.scroll = ft.ScrollMode.AUTO  # Enable scroll when necessary
+
+# Run the app
+ft.app(target=main)
